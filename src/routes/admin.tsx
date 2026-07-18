@@ -11,6 +11,8 @@ import {
   ChevronRight,
   Zap,
   MessageCircle,
+  Menu,
+  X,
 } from "lucide-react";
 
 export const Route = createFileRoute("/admin")({
@@ -31,7 +33,10 @@ function AdminLayout() {
   const currentPath = location.pathname;
   const [isChecking, setIsChecking] = useState(true);
   const [isAuth, setIsAuth] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const isLoginPage = currentPath === "/admin/login";
+
+  const closeSidebar = () => setSidebarOpen(false);
 
   useEffect(() => {
     if (isLoginPage) {
@@ -69,17 +74,40 @@ function AdminLayout() {
 
   return (
     <div className="flex h-screen bg-[#070b14] text-gray-100 font-sans overflow-hidden">
+      {/* ── Mobile Nav Toggle ──────────────────────────────────── */}
+      <button
+        onClick={() => setSidebarOpen(true)}
+        className="md:hidden fixed top-4 left-4 z-50 w-10 h-10 rounded-xl bg-[#0d1526] border border-white/[0.08] flex items-center justify-center text-gray-400 hover:text-white shadow-lg"
+      >
+        <Menu className="w-5 h-5" />
+      </button>
+
+      {/* ── Mobile Overlay ─────────────────────────────────────── */}
+      {sidebarOpen && (
+        <div
+          className="md:hidden fixed inset-0 z-30 bg-black/60 backdrop-blur-sm"
+          onClick={closeSidebar}
+        />
+      )}
+
       {/* ── Sidebar ─────────────────────────────────────────── */}
-      <motion.aside
-        initial={{ x: -280 }}
-        animate={{ x: 0 }}
-        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-        className="w-64 flex flex-col relative z-20 flex-shrink-0"
+      <aside
+        className={`fixed inset-y-0 left-0 z-40 w-64 flex flex-col transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-64"
+        } md:relative md:translate-x-0 md:z-20 md:flex-shrink-0`}
         style={{
           background: "linear-gradient(180deg, #0d1526 0%, #090e1a 100%)",
           borderRight: "1px solid rgba(255,255,255,0.05)",
         }}
       >
+        {/* Mobile close button */}
+        <button
+          onClick={closeSidebar}
+          className="md:hidden absolute top-4 right-4 w-8 h-8 rounded-lg bg-white/[0.05] flex items-center justify-center text-gray-400 hover:text-white"
+        >
+          <X className="w-4 h-4" />
+        </button>
+
         {/* Glow top */}
         <div className="absolute top-0 inset-x-0 h-48 bg-gradient-to-b from-blue-500/5 to-transparent pointer-events-none" />
 
@@ -113,6 +141,7 @@ function AdminLayout() {
               <Link
                 key={link.href}
                 to={link.href as any}
+                onClick={closeSidebar}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 relative group ${
                   active ? "text-white" : "text-gray-500 hover:text-gray-200"
                 }`}
@@ -158,6 +187,7 @@ function AdminLayout() {
             </p>
             <Link
               to="/admin/products/new"
+              onClick={closeSidebar}
               className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-500 hover:text-emerald-300 transition-all duration-200 group relative"
             >
               <div className="absolute inset-0 rounded-xl group-hover:bg-emerald-500/5 transition-colors" />
@@ -188,10 +218,10 @@ function AdminLayout() {
             <span className="text-sm font-medium">Sign Out</span>
           </button>
         </div>
-      </motion.aside>
+      </aside>
 
       {/* ── Main Content ─────────────────────────────────────── */}
-      <main className="flex-1 relative overflow-y-auto" style={{ background: "#070b14" }}>
+      <main className="flex-1 relative overflow-y-auto pt-16 md:pt-0" style={{ background: "#070b14" }}>
         {/* Ambient glow */}
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-600/5 rounded-full blur-3xl" />

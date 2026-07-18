@@ -11,6 +11,7 @@ import {
   Clock,
   User,
   ChevronRight,
+  ArrowLeft,
 } from "lucide-react";
 import { db } from "@/lib/db";
 import { z } from "zod";
@@ -121,6 +122,7 @@ function AdminChat() {
   const [sending, setSending] = useState(false);
   const [loadingMsgs, setLoadingMsgs] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [showSessions, setShowSessions] = useState(true);
   const bottomRef = useRef<HTMLDivElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -166,6 +168,7 @@ function AdminChat() {
   const selectSession = async (sid: string) => {
     setActiveSession(sid);
     setMessages([]);
+    setShowSessions(false);
     await loadMessages(sid);
     setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
   };
@@ -205,7 +208,7 @@ function AdminChat() {
   return (
     <div className="flex h-screen bg-gray-950 text-white overflow-hidden">
       {/* ── Sessions Sidebar ── */}
-      <aside className="w-80 flex-shrink-0 border-r border-white/[0.06] flex flex-col">
+      <aside className={`w-80 flex-shrink-0 border-r border-white/[0.06] flex flex-col ${showSessions ? "flex" : "hidden"} md:flex`}>
         <div className="px-5 py-5 border-b border-white/[0.06] flex items-center justify-between">
           <div>
             <h1 className="text-base font-bold text-white">Live Chat</h1>
@@ -271,8 +274,20 @@ function AdminChat() {
         </div>
       </aside>
 
+      {/* ── Mobile chat toggle ── */}
+      {!activeSession && !showSessions && (
+        <div className="md:hidden fixed bottom-6 right-6 z-30">
+          <button
+            onClick={() => setShowSessions(true)}
+            className="w-12 h-12 rounded-full bg-blue-600 shadow-lg shadow-blue-500/30 flex items-center justify-center text-white"
+          >
+            <MessageCircle className="w-5 h-5" />
+          </button>
+        </div>
+      )}
+
       {/* ── Chat Area ── */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className={`flex-1 flex flex-col min-w-0 ${activeSession && !showSessions ? "flex" : "hidden"} md:flex`}>
         {!activeSession ? (
           <div className="flex-1 flex items-center justify-center flex-col gap-4 text-center px-8">
             <div className="h-16 w-16 rounded-2xl bg-white/[0.04] grid place-items-center mb-2">
@@ -286,9 +301,15 @@ function AdminChat() {
         ) : (
           <>
             {/* Chat Header */}
-            <div className="flex-shrink-0 px-6 py-4 border-b border-white/[0.06] flex items-center justify-between bg-gray-950/50">
+            <div className="flex-shrink-0 px-4 md:px-6 py-4 border-b border-white/[0.06] flex items-center justify-between bg-gray-950/50">
               <div className="flex items-center gap-3">
-                <div className="h-9 w-9 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 grid place-items-center">
+                <button
+                  onClick={() => setShowSessions(true)}
+                  className="md:hidden w-8 h-8 rounded-lg bg-white/[0.05] flex items-center justify-center text-gray-400 hover:text-white flex-shrink-0"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                </button>
+                <div className="h-9 w-9 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 grid place-items-center flex-shrink-0">
                   <User className="h-4 w-4 text-white" />
                 </div>
                 <div>

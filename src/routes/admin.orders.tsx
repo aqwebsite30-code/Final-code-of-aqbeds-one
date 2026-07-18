@@ -99,8 +99,8 @@ function OrderDetail({ order }: { order: any }) {
   };
 
   return (
-    <div className="bg-white/[0.01] border-b border-white/[0.04] px-16 py-8 space-y-6">
-      <div className="grid grid-cols-2 gap-12">
+    <div className="bg-white/[0.01] border-b border-white/[0.04] px-4 md:px-16 py-4 md:py-8 space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-12">
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <h4 className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">
@@ -292,12 +292,12 @@ function AdminOrders() {
         </div>
       </motion.div>
 
-      {/* Table */}
+      {/* Table - Desktop */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.15, duration: 0.4 }}
-        className="rounded-2xl overflow-hidden"
+        className="rounded-2xl overflow-hidden hidden md:block"
         style={card}
       >
         <div
@@ -363,6 +363,66 @@ function AdminOrders() {
           ))
         )}
       </motion.div>
+
+      {/* Mobile Cards */}
+      <div className="space-y-3 md:hidden">
+        {filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center" style={card}>
+            <ShoppingCart className="w-10 h-10 text-gray-800 mb-3" />
+            <p className="text-gray-600 text-sm">
+              {query || tab !== "all" ? "No orders match your filters." : "No orders yet."}
+            </p>
+          </div>
+        ) : (
+          filtered.map((order, i) => (
+            <div key={order.id}>
+              <motion.div
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 + i * 0.03, duration: 0.3 }}
+                onClick={() => setExpandedId(expandedId === order.id ? null : order.id)}
+                className="rounded-2xl p-4 cursor-pointer"
+                style={card}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+                      {order.customerName?.charAt(0) ?? "?"}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-white truncate uppercase">
+                        {order.customerName}
+                      </p>
+                      <p className="text-[10px] text-gray-500 truncate">{order.customerEmail}</p>
+                    </div>
+                  </div>
+                  <span className="text-sm font-bold text-white flex-shrink-0">
+                    £{Number(order.total ?? 0).toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/[0.04]">
+                  <div className="flex items-center gap-2">
+                    <StatusBadge status={order.status ?? "pending"} />
+                    <span className="text-[10px] text-gray-600 font-mono">
+                      #{order.id?.slice(0, 8).toUpperCase()}
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-gray-600 uppercase font-medium">
+                    {order.createdAt
+                      ? new Date(order.createdAt).toLocaleDateString("en-GB", {
+                          day: "numeric",
+                          month: "short",
+                        })
+                      : "—"}
+                  </span>
+                </div>
+              </motion.div>
+
+              {expandedId === order.id && <OrderDetail order={order} />}
+            </div>
+          ))
+        )}
+      </div>
     </div>
   );
 }

@@ -111,12 +111,12 @@ function ProductsList() {
         </div>
       </motion.div>
 
-      {/* Table */}
+      {/* Table - Desktop */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.15, duration: 0.4 }}
-        className="rounded-2xl overflow-hidden"
+        className="rounded-2xl overflow-hidden hidden md:block"
         style={card}
       >
         {/* Table head */}
@@ -203,6 +203,73 @@ function ProductsList() {
           ))
         )}
       </motion.div>
+
+      {/* Mobile Cards */}
+      <div className="space-y-3 md:hidden">
+        {filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center" style={card}>
+            <Package className="w-10 h-10 text-gray-800 mb-3" />
+            <p className="text-gray-600 text-sm">
+              {query ? "No products match your search." : "No products yet. Add your first one!"}
+            </p>
+            {!query && (
+              <Link
+                to="/admin/products/new"
+                className="mt-4 flex items-center gap-1.5 text-blue-400 hover:text-blue-300 text-sm font-medium transition-colors"
+              >
+                <Plus className="w-4 h-4" /> Add Product
+              </Link>
+            )}
+          </div>
+        ) : (
+          filtered.map((product, i) => (
+            <motion.div
+              key={product.id}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 + i * 0.04, duration: 0.3 }}
+              className="rounded-2xl p-4 flex items-center gap-4"
+              style={card}
+            >
+              <div className="w-14 h-14 rounded-xl bg-white/[0.04] flex-shrink-0 overflow-hidden border border-white/[0.06]">
+                {product.images?.[0] ? (
+                  <img
+                    src={product.images[0]}
+                    alt={product.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <Package className="w-5 h-5 text-gray-700" />
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-white truncate">{product.name}</p>
+                <p className="text-[10px] text-gray-500 mt-0.5">{product.category ?? "—"}</p>
+                <div className="flex items-center gap-3 mt-2">
+                  <span className="text-sm font-bold text-white">
+                    £{Number(product.price ?? 0).toLocaleString()}
+                  </span>
+                  <StockBadge stock={product.stock ?? 0} />
+                </div>
+              </div>
+              <div className="flex flex-col gap-1.5 flex-shrink-0">
+                <Link
+                  to="/admin/products/edit/$id"
+                  params={{ id: product.id }}
+                  className="p-2 rounded-lg text-gray-500 hover:text-blue-400 hover:bg-blue-500/10 transition-all"
+                >
+                  <Edit className="w-4 h-4" />
+                </Link>
+                <button className="p-2 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-all">
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            </motion.div>
+          ))
+        )}
+      </div>
     </div>
   );
 }
