@@ -236,3 +236,51 @@ export const sendOrderEmail = createServerFn({ method: "POST" }).handler(async (
     return { success: false, error: error.message };
   }
 });
+
+export async function sendChatNotification(sessionId: string, content: string) {
+  try {
+    const safeContent = escapeHtml(content.slice(0, 200));
+    const shortId = sessionId.slice(-6).toUpperCase();
+
+    await resend.emails.send({
+      from: "AQ Beds <onboarding@resend.dev>",
+      to: ["aqbeds2822@gmail.com"],
+      subject: `New Chat Message — Session #${shortId}`,
+      html: `
+        <div style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 520px; margin: 0 auto; background: #f9fafb; padding: 20px;">
+          <div style="background: #000; padding: 30px 20px; text-align: center; border-radius: 16px 16px 0 0; border-bottom: 4px solid #10b981;">
+            <h1 style="color: white; margin: 0; font-size: 22px; letter-spacing: 2px;">AQ BEDS</h1>
+            <p style="color: #6ee7b7; margin-top: 6px; font-size: 13px;">Live Chat Notification</p>
+          </div>
+          <div style="padding: 30px; background: #fff; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 16px 16px;">
+            <div style="background: #f0fdf4; padding: 16px; border-radius: 10px; border: 1px solid #bbf7d0; margin-bottom: 20px;">
+              <p style="margin: 0; font-size: 14px; color: #166534; font-weight: 600;">
+                A customer has sent a new message via Live Chat.
+              </p>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+              <p style="font-size: 11px; color: #9ca3af; text-transform: uppercase; font-weight: 700; letter-spacing: 1px; margin: 0 0 8px;">Session</p>
+              <p style="font-size: 15px; color: #111; font-weight: 600; margin: 0;">#${shortId}</p>
+            </div>
+
+            <div style="margin-bottom: 24px;">
+              <p style="font-size: 11px; color: #9ca3af; text-transform: uppercase; font-weight: 700; letter-spacing: 1px; margin: 0 0 8px;">Message</p>
+              <div style="background: #f8fafc; padding: 16px; border-radius: 10px; border: 1px solid #f1f5f9;">
+                <p style="margin: 0; font-size: 14px; color: #334155; line-height: 1.6;">${safeContent}</p>
+              </div>
+            </div>
+
+            <a href="https://aqbeds.co.uk/admin/chat" style="display: block; text-align: center; background: #10b981; color: white; text-decoration: none; padding: 14px 20px; border-radius: 10px; font-weight: 700; font-size: 14px; letter-spacing: 0.5px;">
+              Reply in Admin Panel
+            </a>
+
+            <p style="text-align: center; color: #9ca3af; font-size: 11px; margin-top: 20px;">AQ BEDS — Live Chat System</p>
+          </div>
+        </div>
+      `,
+    });
+  } catch (err) {
+    console.error("Chat notification email failed", err);
+  }
+}

@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { db } from "./db";
 import { z } from "zod";
+import { sendChatNotification } from "./email";
 
 const messageSchema = z.object({
   sessionId: z.string(),
@@ -22,6 +23,10 @@ export const sendChatMessage = createServerFn({ method: "POST" }).handler(
           isUser: !isAdmin,
         },
       });
+
+      if (!isAdmin) {
+        await sendChatNotification(sessionId, content);
+      }
 
       return { success: true, message: msg };
     } catch (err) {

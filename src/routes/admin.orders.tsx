@@ -11,6 +11,13 @@ import {
   XCircle,
   Package,
   Loader2,
+  Trash2,
+  CreditCard,
+  MapPin,
+  Phone,
+  Mail,
+  User,
+  MessageSquare,
 } from "lucide-react";
 import { db } from "@/lib/db";
 import { useState } from "react";
@@ -30,6 +37,14 @@ export const updateOrderStatus = createServerFn({ method: "POST" }).handler(
   async ({ data }: { data: any }) => {
     const { id, status } = z.object({ id: z.string(), status: z.string() }).parse(data);
     await db.order.update({ where: { id }, data: { status } });
+    return { success: true };
+  },
+);
+
+export const deleteOrder = createServerFn({ method: "POST" }).handler(
+  async ({ data }: { data: any }) => {
+    const { id } = z.object({ id: z.string() }).parse(data);
+    await db.order.delete({ where: { id } });
     return { success: true };
   },
 );
@@ -79,10 +94,37 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-function OrderDetail({ order }: { order: any }) {
+function parseAddress(address: string) {
+  const parts = address.split(", ").reverse();
+  return {
+    country: parts[0] || "",
+    postcode: parts[1] || "",
+    city: parts[2] || "",
+    addr1: parts.slice(3).reverse().join(", "),
+  };
+}
+
+function InfoRow({ icon: Icon, label, value }: { icon: any; label: string; value: string }) {
+  return (
+    <div className="flex items-start gap-3">
+      <div className="w-8 h-8 rounded-lg bg-white/[0.04] flex items-center justify-center flex-shrink-0 mt-0.5">
+        <Icon className="w-4 h-4 text-gray-500" />
+      </div>
+      <div className="min-w-0">
+        <p className="text-[10px] text-gray-600 uppercase font-bold tracking-wider">{label}</p>
+        <p className="text-sm text-gray-200 mt-0.5 break-words">{value || "—"}</p>
+      </div>
+    </div>
+  );
+}
+
+function OrderDetail({ order, onDelete }: { order: any; onDelete: () => void }) {
   const items = JSON.parse(order.items || "[]");
   const [status, setStatus] = useState(order.status);
   const [updating, setUpdating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const addr = parseAddress(order.customerAddress || "");
 
   const handleUpdate = async () => {
     setUpdating(true);
@@ -98,100 +140,160 @@ function OrderDetail({ order }: { order: any }) {
     }
   };
 
+  const handleDelete = async () => {
+    if (!confirm("Are you sure you want to delete this order? This cannot be undone.")) return;
+    setDeleting(true);
+    try {
+      // @ts-ignore
+      const res = await deleteOrder({ data: { id: order.id } });
+      if (res?.success) {
+        toast.success("Order deleted.");
+        onDelete();
+      } else toast.error("Delete failed.");
+    } catch {
+      toast.error("Network error.");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
-    <div className="bg-white/[0.01] border-b border-white/[0.04] px-4 md:px-16 py-4 md:py-8 space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-12">
-        <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h4 className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">
-              Order Items
+    <div className="bg-white/[0.01] border-b border-white/[0.04] px-4 md:px-16 py-4 md:py-8 space-y-8">
+      {/* Status Controls */}
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-white/[0.04]">
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-gray-500 font-mono">
+            #{order.id?.slice(0, 8).toUpperCase()}
+          </span>
+          <StatusBadge status={order.status ?? "pending"} />
+        </div>
+        <div className="flex items-center gap-2">
+          <select
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+            className="bg-gray-900 border border-white/10 rounded-lg text-xs py-1.5 px-2 text-white outline-none focus:ring-2 focus:ring-blue-500/30"
+          >
+            {["pending", "processing", "shipped", "delivered", "cancelled"].map((s) => (
+              <option key={s} value={s}>
+                {s.toUpperCase()}
+              </option>
+            ))}
+          </select>
+          <button
+            onClick={handleUpdate}
+            disabled={updating || status === order.status}
+            className="px-3 py-1.5 bg-blue-600 text-[10px] font-bold text-white rounded-lg disabled:opacity-30 hover:bg-blue-500 transition-colors"
+          >
+            {updating ? <Loader2 className="w-3 h-3 animate-spin" /> : "SAVE"}
+          </button>
+          <button
+            onClick={handleDelete}
+            disabled={deleting}
+            className="px-3 py-1.5 bg-red-600/20 text-red-400 text-[10px] font-bold rounded-lg hover:bg-red-600/30 transition-colors border border-red-500/20 disabled:opacity-30"
+          >
+            {deleting ? <Loader2 className="w-3 h-3 animate-spin" /> : "DELETE"}
+          </button>
+        </div>
+      </div>
+
+      {/* Two column layout */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        {/* Left: Contact + Address + Payment */}
+        <div className="space-y-6">
+          {/* Contact */}
+          <div>
+            <h4 className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-3 flex items-center gap-2">
+              <User className="w-3 h-3" /> Contact
             </h4>
-            <div className="flex items-center gap-2">
-              <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-                className="bg-gray-900 border border-white/10 rounded-lg text-xs py-1 px-2 text-white outline-none"
-              >
-                {["pending", "processing", "shipped", "delivered", "cancelled"].map((s) => (
-                  <option key={s} value={s}>
-                    {s.toUpperCase()}
-                  </option>
-                ))}
-              </select>
-              <button
-                onClick={handleUpdate}
-                disabled={updating || status === order.status}
-                className="px-3 py-1 bg-blue-600 text-[10px] font-bold text-white rounded-lg disabled:opacity-30 hover:bg-blue-500 transition-colors"
-              >
-                {updating ? <Loader2 className="w-3 h-3 animate-spin" /> : "SAVE"}
-              </button>
+            <div className="space-y-3">
+              <InfoRow icon={User} label="Full Name" value={order.customerName} />
+              <InfoRow icon={Mail} label="Email" value={order.customerEmail} />
+              <InfoRow icon={Phone} label="Phone" value={order.customerPhone} />
             </div>
           </div>
+
+          {/* Shipping Address */}
+          <div>
+            <h4 className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-3 flex items-center gap-2">
+              <MapPin className="w-3 h-3" /> Shipping Address
+            </h4>
+            <div className="space-y-3">
+              <InfoRow icon={MapPin} label="Address Line 1" value={addr.addr1} />
+              <InfoRow icon={MapPin} label="City" value={addr.city} />
+              <InfoRow icon={MapPin} label="Postcode" value={addr.postcode} />
+              <InfoRow icon={MapPin} label="Country" value={addr.country} />
+            </div>
+          </div>
+
+          {/* Payment */}
+          <div>
+            <h4 className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-3 flex items-center gap-2">
+              <CreditCard className="w-3 h-3" /> Payment
+            </h4>
+            <div className="space-y-3">
+              <InfoRow icon={CreditCard} label="Method" value="Cash on Delivery" />
+            </div>
+          </div>
+
+          {/* Instructions */}
+          {order.instructions && (
+            <div>
+              <h4 className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-3 flex items-center gap-2">
+                <MessageSquare className="w-3 h-3" /> Instructions
+              </h4>
+              <div className="px-4 py-3 rounded-xl bg-amber-500/5 border border-amber-500/10">
+                <p className="text-sm text-amber-400/90 italic">"{order.instructions}"</p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Right: Order Items */}
+        <div className="space-y-4">
+          <h4 className="text-[10px] font-bold text-gray-600 uppercase tracking-widest flex items-center gap-2">
+            <Package className="w-3 h-3" /> Order Items ({items.length})
+          </h4>
           <div className="space-y-3">
             {items.map((item: any, idx: number) => (
-              <div key={idx} className="flex justify-between items-start text-xs">
-                <div className="flex gap-3">
-                  <img
-                    src={item.image}
-                    className="w-10 h-10 rounded-lg object-cover bg-gray-900"
-                    alt=""
-                  />
-                  <div>
-                    <p className="text-white font-semibold">
-                      {item.name} <span className="text-gray-600 ml-1">x{item.qty}</span>
-                    </p>
-                    <div className="text-[10px] text-gray-500 mt-0.5 space-y-0.5">
-                      {Object.entries(item.options || {}).map(([k, v]) => (
-                        <p key={k}>
+              <div
+                key={idx}
+                className="flex gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/[0.04]"
+              >
+                <img
+                  src={item.image}
+                  className="w-14 h-14 rounded-lg object-cover bg-gray-900 flex-shrink-0"
+                  alt=""
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-white">{item.name}</p>
+                  <p className="text-[10px] text-gray-500 mt-0.5">Qty: {item.qty}</p>
+                  {item.options && Object.keys(item.options).length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1.5">
+                      {Object.entries(item.options).map(([k, v]) => (
+                        <span
+                          key={k}
+                          className="text-[9px] px-1.5 py-0.5 rounded-md bg-white/[0.04] text-gray-500 border border-white/[0.04]"
+                        >
                           {k}: {v as string}
-                        </p>
+                        </span>
                       ))}
                     </div>
-                  </div>
+                  )}
                 </div>
-                <span className="text-gray-400 font-mono italic">
-                  £{(item.unitPrice * item.qty).toFixed(2)}
-                </span>
+                <div className="text-right flex-shrink-0">
+                  <p className="text-sm font-bold text-white">
+                    £{(item.unitPrice * item.qty).toFixed(2)}
+                  </p>
+                  <p className="text-[10px] text-gray-600">£{item.unitPrice} each</p>
+                </div>
               </div>
             ))}
           </div>
-          <div className="pt-4 border-t border-white/[0.04] flex justify-between items-center">
-            <span className="text-xs font-bold text-white uppercase tracking-tight">
-              Total Payment
-            </span>
-            <span className="text-lg font-black text-blue-400">£{order.total.toFixed(2)}</span>
-          </div>
-        </div>
 
-        <div className="space-y-4">
-          <h4 className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">
-            Customer Information
-          </h4>
-          <div className="grid grid-cols-1 gap-4 text-xs">
-            <div className="flex flex-col gap-1">
-              <span className="text-[10px] text-gray-600 uppercase font-bold tracking-tighter">
-                Shipping Address
-              </span>
-              <p className="text-gray-300 leading-relaxed whitespace-pre-wrap">
-                {order.customerAddress}
-              </p>
-            </div>
-            {order.customerPhone && (
-              <div className="flex flex-col gap-1">
-                <span className="text-[10px] text-gray-600 uppercase font-bold tracking-tighter">
-                  Contact Number
-                </span>
-                <p className="text-gray-300">{order.customerPhone}</p>
-              </div>
-            )}
-            {order.instructions && (
-              <div className="flex flex-col gap-1">
-                <span className="text-[10px] text-gray-600 uppercase font-bold tracking-tighter">
-                  Instructions
-                </span>
-                <p className="text-amber-400/80 italic">"{order.instructions}"</p>
-              </div>
-            )}
+          {/* Total */}
+          <div className="pt-4 border-t border-white/[0.04] flex justify-between items-center">
+            <span className="text-xs font-bold text-gray-400 uppercase tracking-tight">Total</span>
+            <span className="text-xl font-black text-blue-400">£{order.total.toFixed(2)}</span>
           </div>
         </div>
       </div>
@@ -200,7 +302,8 @@ function OrderDetail({ order }: { order: any }) {
 }
 
 function AdminOrders() {
-  const orders = Route.useLoaderData() as any[];
+  const data = Route.useLoaderData();
+  const [orders, setOrders] = useState<any[]>(data ?? []);
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState<string>("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -222,6 +325,11 @@ function AdminOrders() {
   };
 
   const totalRevenue = orders.reduce((sum, o) => sum + (o.total ?? 0), 0);
+
+  const handleDelete = (id: string) => {
+    setOrders((prev) => prev.filter((o) => o.id !== id));
+    if (expandedId === id) setExpandedId(null);
+  };
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-6">
@@ -358,7 +466,9 @@ function AdminOrders() {
                 </span>
               </motion.div>
 
-              {expandedId === order.id && <OrderDetail order={order} />}
+              {expandedId === order.id && (
+                <OrderDetail order={order} onDelete={() => handleDelete(order.id)} />
+              )}
             </div>
           ))
         )}
@@ -418,7 +528,9 @@ function AdminOrders() {
                 </div>
               </motion.div>
 
-              {expandedId === order.id && <OrderDetail order={order} />}
+              {expandedId === order.id && (
+                <OrderDetail order={order} onDelete={() => handleDelete(order.id)} />
+              )}
             </div>
           ))
         )}
