@@ -247,7 +247,7 @@ const SOFA_PALETTES: Record<string, { name: string; hex?: string; image?: string
 };
 
 function ProductPage() {
-  const { product } = Route.useLoaderData();
+  const { product, isDb } = Route.useLoaderData();
   const add = useCart((s) => s.add);
   const setCartOpen = useUI((s) => s.setCartOpen);
   const wish = useWishlist();
@@ -581,7 +581,7 @@ function ProductPage() {
                   </OptionGroup>
                 )}
               </>
-            ) : product.fabrics && product.fabrics.length > 0 ? (
+            ) : product.fabrics && product.fabrics.length > 0 && !isDb ? (
               [
                 {
                   label: "Crushed Velvet Colors",
@@ -636,6 +636,49 @@ function ProductPage() {
                   </div>
                 </OptionGroup>
               ))
+            ) : isDb && product.fabrics && product.fabrics.length > 0 ? (
+              product.fabrics.map((fabric: any) => {
+                const palette = fabric.colors || [];
+                if (palette.length === 0) return null;
+                return (
+                  <OptionGroup
+                    key={fabric.name}
+                    label={`${fabric.name} Colors`}
+                    value={color?.name || undefined}
+                  >
+                    <div className="flex flex-wrap gap-3">
+                      {palette.map((c: any) => (
+                        <button
+                          key={c.name + (c.image || "")}
+                          onClick={() => {
+                            setColor(c);
+                            setFabric({ name: fabric.name, extraPrice: fabric.extraPrice });
+                          }}
+                          className={`group relative w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden border-2 transition-all ${color?.name === c.name ? "border-brand ring-4 ring-brand/10 scale-105" : "border-border hover:border-brand/40"}`}
+                          title={c.name}
+                        >
+                          {c.image ? (
+                            <img
+                              src={c.image}
+                              alt={`${c.name} — ${fabric.name} — AQ Beds`}
+                              className="h-full w-full object-cover"
+                              loading="lazy"
+                              decoding="async"
+                            />
+                          ) : c.hex ? (
+                            <div className="h-full w-full" style={{ backgroundColor: c.hex }} />
+                          ) : (
+                            <div className="h-full w-full bg-gray-700 flex items-center justify-center text-[8px] text-gray-400">{c.name?.charAt(0)}</div>
+                          )}
+                          <div className="absolute bottom-0 left-0 right-0 h-[18px] bg-black/75 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                            <span className="text-[7px] font-bold text-white uppercase tracking-tight truncate px-1">{c.name}</span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </OptionGroup>
+                );
+              })
             ) : (
               <OptionGroup label="Colors" value={color?.name}>
                 <div className="flex flex-wrap gap-3">

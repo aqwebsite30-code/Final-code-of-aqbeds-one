@@ -98,8 +98,8 @@ export function AddProduct() {
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [imageInput, setImageInput] = useState("");
 
-  const [colors, setColors] = useState<ColorRow[]>([]);
   const [fabrics, setFabrics] = useState<OptionRow[]>([]);
+  const [fabricColors, setFabricColors] = useState<ColorRow[][]>([]);
   const [sizes, setSizes] = useState<OptionRow[]>([]);
   const [mattressOptions, setMattressOptions] = useState<OptionRow[]>([]);
   const [frameOptions, setFrameOptions] = useState<OptionRow[]>([]);
@@ -137,8 +137,13 @@ export function AddProduct() {
     setIsSubmitting(true);
     try {
       const options = {
-        colors: colors.filter((c) => c.name.trim()),
-        fabrics: fabrics.filter((f) => f.name.trim()),
+        fabrics: fabrics
+          .map((f, i) => ({
+            name: f.name.trim(),
+            extraPrice: f.extraPrice,
+            colors: (fabricColors[i] || []).filter((c) => c.name.trim()),
+          }))
+          .filter((f) => f.name),
         sizes: sizes.filter((s) => s.name.trim()),
         mattressOptions: mattressOptions.filter((m) => m.name.trim()),
         frameOptions: frameOptions.filter((f) => f.name.trim()),
@@ -310,31 +315,106 @@ export function AddProduct() {
               <h2 className="text-lg font-semibold text-white mb-6">Product Variants</h2>
 
               <div className="space-y-6">
-                {/* Colors */}
+                {/* Fabrics & Colors */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Colors</h4>
-                    <button type="button" onClick={() => setColors([...colors, { name: "", hex: "#000000", image: "" }])} className="text-blue-400 hover:text-blue-300 text-xs font-semibold flex items-center gap-1">
-                      <Plus className="w-3 h-3" /> Add Color
+                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Fabrics &amp; Colors</h4>
+                    <button type="button" onClick={() => setFabrics([...fabrics, { name: "", extraPrice: 0 }])} className="text-blue-400 hover:text-blue-300 text-xs font-semibold flex items-center gap-1">
+                      <Plus className="w-3 h-3" /> Add Fabric
                     </button>
                   </div>
-                  <div className="space-y-2">
-                    {colors.map((c, i) => (
-                      <div key={i} className="flex items-center gap-2">
-                        <input type="color" value={c.hex} onChange={(e) => { const copy = [...colors]; copy[i] = { ...copy[i], hex: e.target.value }; setColors(copy); }} className="w-8 h-8 rounded-lg border border-white/10 bg-gray-900 cursor-pointer" />
-                        <input type="text" value={c.name} onChange={(e) => { const copy = [...colors]; copy[i] = { ...copy[i], name: e.target.value }; setColors(copy); }} placeholder="Color name" className="flex-1 bg-gray-900 border border-white/10 rounded-lg text-xs px-3 py-2 text-white outline-none focus:ring-1 focus:ring-blue-500/30" />
-                        <input type="text" value={c.image} onChange={(e) => { const copy = [...colors]; copy[i] = { ...copy[i], image: e.target.value }; setColors(copy); }} placeholder="Image URL (optional)" className="flex-1 bg-gray-900 border border-white/10 rounded-lg text-xs px-3 py-2 text-white outline-none focus:ring-1 focus:ring-blue-500/30" />
-                        <button type="button" onClick={() => setColors(colors.filter((_, idx) => idx !== i))} className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors">
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    ))}
-                    {colors.length === 0 && <p className="text-[10px] text-gray-600 text-center py-2">No colors added.</p>}
+                  <div className="space-y-3">
+                    {fabrics.map((fabric, fi) => {
+                      const fc = fabricColors[fi] || [];
+                      return (
+                        <div key={fi} className="bg-white/[0.02] rounded-xl border border-white/[0.06] p-4">
+                          <div className="flex items-center gap-2 mb-3">
+                            <input
+                              type="text"
+                              value={fabric.name}
+                              onChange={(e) => {
+                                const copy = [...fabrics];
+                                copy[fi] = { ...copy[fi], name: e.target.value };
+                                setFabrics(copy);
+                              }}
+                              placeholder="Fabric name (e.g. Crushed Velvet)"
+                              className="flex-1 bg-gray-900 border border-white/10 rounded-lg text-xs px-3 py-2 text-white outline-none focus:ring-1 focus:ring-blue-500/30"
+                            />
+                            <input
+                              type="number"
+                              value={fabric.extraPrice}
+                              onChange={(e) => {
+                                const copy = [...fabrics];
+                                copy[fi] = { ...copy[fi], extraPrice: Number(e.target.value) };
+                                setFabrics(copy);
+                              }}
+                              placeholder="+£"
+                              className="w-20 bg-gray-900 border border-white/10 rounded-lg text-xs px-3 py-2 text-white outline-none focus:ring-1 focus:ring-blue-500/30"
+                            />
+                            <button type="button" onClick={() => {
+                              setFabrics(fabrics.filter((_, i) => i !== fi));
+                              const copy = [...fabricColors];
+                              copy.splice(fi, 1);
+                              setFabricColors(copy);
+                            }} className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                          {/* Colors under this fabric */}
+                          <div className="ml-2 pl-3 border-l border-white/[0.06]">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Colors</span>
+                              <button type="button" onClick={() => {
+                                const copy = [...fabricColors];
+                                if (!copy[fi]) copy[fi] = [];
+                                copy[fi] = [...copy[fi], { name: "", hex: "#000000", image: "" }];
+                                setFabricColors(copy);
+                              }} className="text-blue-400 hover:text-blue-300 text-[10px] font-semibold flex items-center gap-1">
+                                <Plus className="w-2.5 h-2.5" /> Add Color
+                              </button>
+                            </div>
+                            {(fc.length === 0) ? (
+                              <p className="text-[10px] text-gray-600 text-center py-1">No colors for this fabric.</p>
+                            ) : (
+                              <div className="space-y-1.5">
+                                {fc.map((c, ci) => (
+                                  <div key={ci} className="flex items-center gap-1.5">
+                                    <input type="color" value={c.hex} onChange={(e) => {
+                                      const copy = [...fabricColors];
+                                      copy[fi] = [...copy[fi]];
+                                      copy[fi][ci] = { ...copy[fi][ci], hex: e.target.value };
+                                      setFabricColors(copy);
+                                    }} className="w-7 h-7 rounded-lg border border-white/10 bg-gray-900 cursor-pointer flex-shrink-0" />
+                                    <input type="text" value={c.name} onChange={(e) => {
+                                      const copy = [...fabricColors];
+                                      copy[fi] = [...copy[fi]];
+                                      copy[fi][ci] = { ...copy[fi][ci], name: e.target.value };
+                                      setFabricColors(copy);
+                                    }} placeholder="Color name" className="flex-1 bg-gray-900 border border-white/10 rounded-lg text-[10px] px-2 py-1.5 text-white outline-none focus:ring-1 focus:ring-blue-500/30" />
+                                    <input type="text" value={c.image} onChange={(e) => {
+                                      const copy = [...fabricColors];
+                                      copy[fi] = [...copy[fi]];
+                                      copy[fi][ci] = { ...copy[fi][ci], image: e.target.value };
+                                      setFabricColors(copy);
+                                    }} placeholder="Image URL" className="flex-[2] bg-gray-900 border border-white/10 rounded-lg text-[10px] px-2 py-1.5 text-white outline-none focus:ring-1 focus:ring-blue-500/30" />
+                                    <button type="button" onClick={() => {
+                                      const copy = [...fabricColors];
+                                      copy[fi] = copy[fi].filter((_: any, idx: number) => idx !== ci);
+                                      setFabricColors(copy);
+                                    }} className="p-1 text-red-400 hover:text-red-300 rounded-lg transition-colors">
+                                      <Trash2 className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {fabrics.length === 0 && <p className="text-[10px] text-gray-600 text-center py-2">No fabrics added. Add a fabric first, then add colors under it.</p>}
                   </div>
                 </div>
-
-                {/* Fabrics */}
-                <OptionEditor label="Fabrics" rows={fabrics} setRows={setFabrics} priceLabel="+£" />
 
                 {/* Sizes */}
                 <OptionEditor label="Sizes" rows={sizes} setRows={setSizes} priceLabel="+£" />
@@ -371,12 +451,12 @@ export function AddProduct() {
 
               <div className="space-y-5">
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1.5">Regular Price (£)</label>
-                  <input type="number" value={price} onChange={(e) => setPrice(e.target.value)} className="w-full bg-gray-950/50 border border-gray-800 text-white rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/50" />
+                  <label className="block text-sm font-medium text-gray-300 mb-1.5">Original Price (£) <span className="text-gray-600 font-normal">(shown with strikethrough)</span></label>
+                  <input type="number" value={salePrice} onChange={(e) => setSalePrice(e.target.value)} className="w-full bg-gray-950/50 border border-gray-800 text-white rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/50" placeholder="e.g. 250" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1.5">Sale Price (£)</label>
-                  <input type="number" value={salePrice} onChange={(e) => setSalePrice(e.target.value)} className="w-full bg-gray-950/50 border border-gray-800 text-white rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/50" />
+                  <label className="block text-sm font-medium text-gray-300 mb-1.5">Discount Price (£) <span className="text-gray-600 font-normal">(what customer pays)</span></label>
+                  <input type="number" value={price} onChange={(e) => setPrice(e.target.value)} className="w-full bg-gray-950/50 border border-gray-800 text-white rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/50" placeholder="e.g. 185" />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>

@@ -4,6 +4,12 @@ import { db } from "./db";
 export type Option = { name: string; extraPrice: number };
 export type Color = { name: string; hex?: string; image?: string };
 
+export type FabricWithColors = {
+  name: string;
+  extraPrice: number;
+  colors: Color[];
+};
+
 export interface DbProductData {
   id: string;
   slug: string;
@@ -18,7 +24,7 @@ export interface DbProductData {
   featured: boolean;
   colors: Color[];
   sizes: Option[];
-  fabrics: Option[];
+  fabrics: FabricWithColors[];
   mattressOptions: Option[];
   frameOptions: Option[];
   headboardOptions?: Option[];
@@ -36,6 +42,17 @@ function parseOptions(raw: string | null) {
 
 function mapDbProduct(p: any): DbProductData {
   const opts = parseOptions(p.options);
+  const fabrics: FabricWithColors[] = (opts.fabrics || []).map((f: any) => ({
+    name: f.name || "",
+    extraPrice: f.extraPrice || 0,
+    colors: (f.colors || []).map((c: any) => ({
+      name: c.name || "",
+      hex: c.hex || undefined,
+      image: c.image || undefined,
+    })),
+  }));
+  const allColors: Color[] = [];
+  fabrics.forEach((f) => allColors.push(...f.colors));
   return {
     id: p.id,
     slug: p.slug,
@@ -48,9 +65,9 @@ function mapDbProduct(p: any): DbProductData {
     images: (p.images || []).map((i: any) => i.imageUrl),
     rating: p.rating || 0,
     featured: p.featured || false,
-    colors: opts.colors || [],
+    colors: allColors,
     sizes: opts.sizes || [],
-    fabrics: opts.fabrics || [],
+    fabrics,
     mattressOptions: opts.mattressOptions || [],
     frameOptions: opts.frameOptions || [],
     headboardOptions: opts.headboardOptions || undefined,
