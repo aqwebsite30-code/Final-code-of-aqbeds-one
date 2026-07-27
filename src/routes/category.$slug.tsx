@@ -1,13 +1,15 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import { CATEGORIES, type Category, getByCategory } from "@/features/products/data/products";
+import { getDbProducts } from "@/lib/products";
 import { ProductCard } from "@/features/products/components/ProductCard";
 import { motion } from "framer-motion";
 
 export const Route = createFileRoute("/category/$slug")({
-  loader: ({ params }) => {
+  loader: async ({ params }) => {
     const cat = CATEGORIES.find((c) => c.slug === params.slug);
     if (!cat) throw notFound();
-    return { category: cat };
+    const dbProducts = await getDbProducts();
+    return { category: cat, dbProducts };
   },
   head: ({ loaderData }) => ({
     meta: loaderData
@@ -34,8 +36,10 @@ export const Route = createFileRoute("/category/$slug")({
 });
 
 function CategoryPage() {
-  const { category } = Route.useLoaderData();
-  const products = getByCategory(category.slug as Category);
+  const { category, dbProducts } = Route.useLoaderData();
+  const staticProducts = getByCategory(category.slug as Category) as any[];
+  const dbFiltered = (dbProducts || []).filter((p) => p.category === category.slug);
+  const products = [...dbFiltered, ...staticProducts];
 
   return (
     <div className="animate-fade-in bg-background min-h-screen">

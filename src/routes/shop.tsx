@@ -1,11 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState, useRef } from "react";
 import { PRODUCTS, searchProducts } from "@/features/products/data/products";
+import { getDbProducts } from "@/lib/products";
 import { ProductCard } from "@/features/products/components/ProductCard";
 import { SlidersHorizontal, X, ChevronDown, Search } from "lucide-react";
 import { motion, AnimatePresence, useInView } from "framer-motion";
 
 export const Route = createFileRoute("/shop")({
+  loader: async () => {
+    const dbProducts = await getDbProducts();
+    return { dbProducts };
+  },
   head: () => ({
     meta: [
       { title: "Shop All Beds — AQ Beds" },
@@ -27,6 +32,7 @@ export const Route = createFileRoute("/shop")({
 });
 
 function ShopPage() {
+  const { dbProducts } = Route.useLoaderData();
   const [maxPrice, setMaxPrice] = useState(1500);
   const [sort, setSort] = useState<"featured" | "low" | "high">("featured");
   const [showFilters, setShowFilters] = useState(false);
@@ -48,14 +54,17 @@ function ShopPage() {
     );
 
   // Only show beds in Shop All
-  const bedsOnly = useMemo(
-    () =>
-      PRODUCTS.filter(
-        (p) =>
-          !["wardrobes", "sliding-wardrobes", "sofas", "bedroom-furniture"].includes(p.category),
-      ),
-    [],
-  );
+  const bedsOnly = useMemo(() => {
+    const staticBeds = PRODUCTS.filter(
+      (p) =>
+        !["wardrobes", "sliding-wardrobes", "sofas", "bedroom-furniture"].includes(p.category),
+    ) as any[];
+    const dbBeds = (dbProducts || []).filter(
+      (p) =>
+        !["wardrobes", "sliding-wardrobes", "sofas", "bedroom-furniture"].includes(p.category),
+    );
+    return [...dbBeds, ...staticBeds];
+  }, [dbProducts]);
 
   // Dynamic Filters (Priority 8)
   const dynamicCategories = useMemo(

@@ -2,6 +2,7 @@ import { createFileRoute, notFound, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 
 import { getProduct, PRODUCTS, DISCOUNT_POSTCODES } from "@/features/products/data/products";
+import { getDbProductBySlug } from "@/lib/products";
 import { formatGBP } from "@/lib/utils/format";
 import { useCart, useUI, useWishlist } from "@/features/cart/store/cart";
 import { ProductCard } from "@/features/products/components/ProductCard";
@@ -18,10 +19,29 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 
 export const Route = createFileRoute("/product/$slug")({
-  loader: ({ params }) => {
+  loader: async ({ params }) => {
+    const dbProduct = await getDbProductBySlug({ data: params.slug });
+    if (dbProduct) {
+      const product = {
+        ...dbProduct,
+        id: dbProduct.slug,
+        reviews: 0,
+        isNew: false,
+        onSale: !!dbProduct.originalPrice,
+        keywords: [] as string[],
+        colors: dbProduct.colors || [],
+        sizes: dbProduct.sizes || [],
+        fabrics: dbProduct.fabrics || [],
+        mattressOptions: dbProduct.mattressOptions || [],
+        frameOptions: dbProduct.frameOptions || [],
+        headboardOptions: dbProduct.headboardOptions || [],
+        storageOptions: dbProduct.storageOptions || [],
+      };
+      return { product, isDb: true };
+    }
     const product = getProduct(params.slug);
     if (!product) throw notFound();
-    return { product };
+    return { product, isDb: false };
   },
   head: ({ loaderData }) => ({
     meta: loaderData
@@ -395,8 +415,8 @@ function ProductPage() {
   ]);
 
   const total = unitPrice * qty;
-  const related = PRODUCTS.filter(
-    (p) => p.category === product.category && p.id !== product.id,
+  const related = (PRODUCTS as any[]).filter(
+    (p: any) => p.category === product.category && p.id !== product.id,
   ).slice(0, 4);
 
   const selectedOptions: Record<string, string> = {

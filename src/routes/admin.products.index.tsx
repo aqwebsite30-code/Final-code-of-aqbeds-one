@@ -10,13 +10,20 @@ import {
   XCircle,
   Edit,
   Trash2,
+  Loader2,
 } from "lucide-react";
 import { db } from "@/lib/db";
 import { useState } from "react";
+import { toast } from "sonner";
+import { deleteProduct } from "@/lib/admin-products";
 
 export const getProducts = createServerFn({ method: "GET" }).handler(async () => {
   try {
-    const products = await db.product.findMany({ orderBy: { createdAt: "desc" }, take: 50 });
+    const products = await db.product.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 50,
+      include: { images: { orderBy: { sortOrder: "asc" }, take: 1 } },
+    });
     return products;
   } catch {
     return [];
@@ -49,8 +56,10 @@ function StockBadge({ stock }: { stock: number }) {
 }
 
 function ProductsList() {
-  const products = Route.useLoaderData() as any[];
+  const data = Route.useLoaderData() as any[];
+  const [products, setProducts] = useState<any[]>(data ?? []);
   const [query, setQuery] = useState("");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const filtered = products.filter(
     (p) =>
@@ -195,8 +204,20 @@ function ProductsList() {
                 >
                   <Edit className="w-3.5 h-3.5" />
                 </Link>
-                <button className="p-1.5 rounded-lg text-gray-600 hover:text-red-400 hover:bg-red-500/10 transition-all">
-                  <Trash2 className="w-3.5 h-3.5" />
+                <button
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    if (!confirm("Delete this product?")) return;
+                    setDeletingId(product.id);
+                    await deleteProduct({ data: { id: product.id } });
+                    setProducts((prev) => prev.filter((p) => p.id !== product.id));
+                    setDeletingId(null);
+                    toast.success("Product deleted.");
+                  }}
+                  disabled={deletingId === product.id}
+                  className="p-1.5 rounded-lg text-gray-600 hover:text-red-400 hover:bg-red-500/10 transition-all disabled:opacity-30"
+                >
+                  {deletingId === product.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                 </button>
               </div>
             </motion.div>
@@ -262,8 +283,20 @@ function ProductsList() {
                 >
                   <Edit className="w-4 h-4" />
                 </Link>
-                <button className="p-2 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-all">
-                  <Trash2 className="w-4 h-4" />
+                <button
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    if (!confirm("Delete this product?")) return;
+                    setDeletingId(product.id);
+                    await deleteProduct({ data: { id: product.id } });
+                    setProducts((prev) => prev.filter((p) => p.id !== product.id));
+                    setDeletingId(null);
+                    toast.success("Product deleted.");
+                  }}
+                  disabled={deletingId === product.id}
+                  className="p-2 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-all disabled:opacity-30"
+                >
+                  {deletingId === product.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                 </button>
               </div>
             </motion.div>
