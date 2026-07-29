@@ -7,7 +7,6 @@ import {
   ShoppingCart,
   Settings,
   LogOut,
-  PlusCircle,
   ChevronRight,
   Zap,
   MessageCircle,
@@ -181,22 +180,7 @@ function AdminLayout() {
             );
           })}
 
-          <div className="pt-4">
-            <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest px-3 mb-3">
-              Actions
-            </p>
-            <Link
-              to="/admin/products/new"
-              onClick={closeSidebar}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-500 hover:text-emerald-300 transition-all duration-200 group relative"
-            >
-              <div className="absolute inset-0 rounded-xl group-hover:bg-emerald-500/5 transition-colors" />
-              <div className="relative flex items-center justify-center w-8 h-8 rounded-lg text-gray-600 group-hover:text-emerald-400 group-hover:bg-emerald-500/10 transition-all">
-                <PlusCircle className="w-4 h-4" />
-              </div>
-              <span className="relative text-sm font-medium">Add Product</span>
-            </Link>
-          </div>
+
         </nav>
 
         {/* Bottom — User + Logout */}

@@ -3,7 +3,11 @@ import { Resend } from "resend";
 import { formatGBP } from "../utils/format";
 import { PRODUCTS } from "../features/products/data/products";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+function getResend() {
+  const key = process.env.RESEND_API_KEY;
+  if (!key) throw new Error("RESEND_API_KEY is not set");
+  return new Resend(key);
+}
 
 function escapeHtml(text: string): string {
   const map: Record<string, string> = {
@@ -82,6 +86,7 @@ export const sendOrderEmail = createServerFn({ method: "POST" }).handler(async (
       .join("");
 
     // 1. Send Admin Notification Email
+    const resend = getResend();
     const adminResponse = await resend.emails.send({
       from: "AQ Beds <onboarding@resend.dev>",
       to: [NOTIFICATION_EMAIL],
@@ -242,6 +247,7 @@ export async function sendChatNotification(sessionId: string, content: string) {
     const safeContent = escapeHtml(content.slice(0, 200));
     const shortId = sessionId.slice(-6).toUpperCase();
 
+    const resend = getResend();
     await resend.emails.send({
       from: "AQ Beds <onboarding@resend.dev>",
       to: ["aqbeds2822@gmail.com"],

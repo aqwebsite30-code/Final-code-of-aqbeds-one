@@ -1,21 +1,15 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { motion } from "framer-motion";
 import {
   Search,
-  Plus,
   Package,
   AlertTriangle,
   CheckCircle,
   XCircle,
-  Edit,
-  Trash2,
-  Loader2,
 } from "lucide-react";
 import { db } from "@/lib/db";
 import { useState } from "react";
-import { toast } from "sonner";
-import { deleteProduct } from "@/lib/admin-products";
 
 export const getProducts = createServerFn({ method: "GET" }).handler(async () => {
   try {
@@ -59,7 +53,6 @@ function ProductsList() {
   const data = Route.useLoaderData() as any[];
   const [products, setProducts] = useState<any[]>(data ?? []);
   const [query, setQuery] = useState("");
-  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const filtered = products.filter(
     (p) =>
@@ -88,13 +81,6 @@ function ProductsList() {
             {products.length} product{products.length !== 1 ? "s" : ""} in inventory
           </p>
         </div>
-        <Link
-          to="/admin/products/new"
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-blue-600 hover:bg-blue-500 transition-all shadow-lg shadow-blue-500/20"
-        >
-          <Plus className="w-4 h-4" />
-          Add Product
-        </Link>
       </motion.div>
 
       {/* Toolbar */}
@@ -130,14 +116,13 @@ function ProductsList() {
       >
         {/* Table head */}
         <div
-          className="grid grid-cols-[2fr_1fr_1fr_1fr_auto] px-5 py-3 text-[10px] font-bold text-gray-600 uppercase tracking-widest"
+          className="grid grid-cols-[2fr_1fr_1fr_1fr] px-5 py-3 text-[10px] font-bold text-gray-600 uppercase tracking-widest"
           style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}
         >
           <span>Product</span>
           <span>Category</span>
           <span>Price</span>
           <span>Stock</span>
-          <span className="w-14" />
         </div>
 
         {/* Rows */}
@@ -145,16 +130,8 @@ function ProductsList() {
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <Package className="w-10 h-10 text-gray-800 mb-3" />
             <p className="text-gray-600 text-sm">
-              {query ? "No products match your search." : "No products yet. Add your first one!"}
+              {query ? "No products match your search." : "No products yet."}
             </p>
-            {!query && (
-              <Link
-                to="/admin/products/new"
-                className="mt-4 flex items-center gap-1.5 text-blue-400 hover:text-blue-300 text-sm font-medium transition-colors"
-              >
-                <Plus className="w-4 h-4" /> Add Product
-              </Link>
-            )}
           </div>
         ) : (
           filtered.map((product, i) => (
@@ -163,7 +140,7 @@ function ProductsList() {
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 + i * 0.04, duration: 0.3 }}
-              className="grid grid-cols-[2fr_1fr_1fr_1fr_auto] items-center px-5 py-4 hover:bg-white/[0.02] transition-colors group"
+              className="grid grid-cols-[2fr_1fr_1fr_1fr] items-center px-5 py-4 hover:bg-white/[0.02] transition-colors group"
               style={{ borderBottom: "1px solid rgba(255,255,255,0.03)" }}
             >
               {/* Name + image */}
@@ -194,32 +171,6 @@ function ProductsList() {
                 £{Number(product.price ?? 0).toLocaleString()}
               </span>
               <StockBadge stock={product.stock ?? 0} />
-
-              {/* Actions */}
-              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity w-14 justify-end">
-                <Link
-                  to="/admin/products/edit/$id"
-                  params={{ id: product.id }}
-                  className="p-1.5 rounded-lg text-gray-600 hover:text-blue-400 hover:bg-blue-500/10 transition-all"
-                >
-                  <Edit className="w-3.5 h-3.5" />
-                </Link>
-                <button
-                  onClick={async (e) => {
-                    e.stopPropagation();
-                    if (!confirm("Delete this product?")) return;
-                    setDeletingId(product.id);
-                    await deleteProduct({ data: { id: product.id } });
-                    setProducts((prev) => prev.filter((p) => p.id !== product.id));
-                    setDeletingId(null);
-                    toast.success("Product deleted.");
-                  }}
-                  disabled={deletingId === product.id}
-                  className="p-1.5 rounded-lg text-gray-600 hover:text-red-400 hover:bg-red-500/10 transition-all disabled:opacity-30"
-                >
-                  {deletingId === product.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-                </button>
-              </div>
             </motion.div>
           ))
         )}
@@ -231,16 +182,8 @@ function ProductsList() {
           <div className="flex flex-col items-center justify-center py-20 text-center" style={card}>
             <Package className="w-10 h-10 text-gray-800 mb-3" />
             <p className="text-gray-600 text-sm">
-              {query ? "No products match your search." : "No products yet. Add your first one!"}
+              {query ? "No products match your search." : "No products yet."}
             </p>
-            {!query && (
-              <Link
-                to="/admin/products/new"
-                className="mt-4 flex items-center gap-1.5 text-blue-400 hover:text-blue-300 text-sm font-medium transition-colors"
-              >
-                <Plus className="w-4 h-4" /> Add Product
-              </Link>
-            )}
           </div>
         ) : (
           filtered.map((product, i) => (
@@ -274,30 +217,6 @@ function ProductsList() {
                   </span>
                   <StockBadge stock={product.stock ?? 0} />
                 </div>
-              </div>
-              <div className="flex flex-col gap-1.5 flex-shrink-0">
-                <Link
-                  to="/admin/products/edit/$id"
-                  params={{ id: product.id }}
-                  className="p-2 rounded-lg text-gray-500 hover:text-blue-400 hover:bg-blue-500/10 transition-all"
-                >
-                  <Edit className="w-4 h-4" />
-                </Link>
-                <button
-                  onClick={async (e) => {
-                    e.stopPropagation();
-                    if (!confirm("Delete this product?")) return;
-                    setDeletingId(product.id);
-                    await deleteProduct({ data: { id: product.id } });
-                    setProducts((prev) => prev.filter((p) => p.id !== product.id));
-                    setDeletingId(null);
-                    toast.success("Product deleted.");
-                  }}
-                  disabled={deletingId === product.id}
-                  className="p-2 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-all disabled:opacity-30"
-                >
-                  {deletingId === product.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                </button>
               </div>
             </motion.div>
           ))

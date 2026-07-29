@@ -1,6 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { AddProduct } from "./admin.products.new";
 import { Search, Plus, Edit, Trash2, ArrowLeft } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -47,7 +46,7 @@ function SecretProductsController() {
   const navigate = useNavigate();
   const [isAuth, setIsAuth] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
-  const [view, setView] = useState<"list" | "form">("list");
+  const [view, setView] = useState<"list">("list");
 
   useEffect(() => {
     const token = localStorage.getItem("admin_token");
@@ -77,7 +76,6 @@ function SecretProductsController() {
 
       <main className="flex-1 overflow-y-auto relative z-10 w-full p-4 sm:p-8">
         <AnimatePresence mode="wait">
-          {view === "list" ? (
             <motion.div
               key="list"
               initial={{ opacity: 0, y: 16 }}
@@ -94,13 +92,6 @@ function SecretProductsController() {
                     Full management access. Manage your inventory, pricing, and variants.
                   </p>
                 </div>
-                <button
-                  onClick={() => setView("form")}
-                  className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors shadow-lg shadow-blue-500/25 cursor-pointer"
-                >
-                  <Plus className="w-5 h-5" />
-                  Add Product
-                </button>
               </div>
 
               <div className="bg-gray-900/40 backdrop-blur-xl border border-gray-800/60 rounded-2xl flex flex-col flex-1 overflow-hidden shadow-2xl">
@@ -186,28 +177,6 @@ function SecretProductsController() {
                 </div>
               </div>
             </motion.div>
-          ) : (
-            <motion.div
-              key="form"
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -16 }}
-              className="max-w-7xl mx-auto h-full flex flex-col"
-            >
-              <div className="mb-6">
-                <button
-                  onClick={() => setView("list")}
-                  className="flex items-center gap-2 text-sm font-medium text-gray-400 hover:text-white transition-colors cursor-pointer w-fit"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                  Back to Products List
-                </button>
-              </div>
-              <div className="flex-1 relative">
-                <AddProduct />
-              </div>
-            </motion.div>
-          )}
         </AnimatePresence>
       </main>
     </div>
