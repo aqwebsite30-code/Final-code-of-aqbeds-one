@@ -16,6 +16,9 @@ import { GlobalEffects } from "@/components/ui/GlobalEffects";
 import { useState, useEffect, useRef, Suspense, lazy } from "react";
 import React from "react";
 import { Zap } from "lucide-react";
+import { createServerFn } from "@tanstack/react-start";
+import { db } from "@/lib/db";
+import { z } from "zod";
 
 const CartDrawer = lazy(() =>
   import("@/features/cart/components/CartDrawer").then((m) => ({ default: m.CartDrawer })),
@@ -100,10 +103,19 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { property: "og:type", content: "website" },
       { property: "og:url", content: "https://www.aqbeds.com" },
-      { property: "og:image", content: "https://www.aqbeds.com/Home%20page%20images/1000152185-clean.webp" },
+      {
+        property: "og:image",
+        content: "https://www.aqbeds.com/Home%20page%20images/1000152185-clean.webp",
+      },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "AQ Beds — Luxury Ottoman, Divan & Storage Beds | Handcrafted in the UK" },
-      { name: "twitter:image", content: "https://www.aqbeds.com/Home%20page%20images/1000152185-clean.webp" },
+      {
+        name: "twitter:title",
+        content: "AQ Beds — Luxury Ottoman, Divan & Storage Beds | Handcrafted in the UK",
+      },
+      {
+        name: "twitter:image",
+        content: "https://www.aqbeds.com/Home%20page%20images/1000152185-clean.webp",
+      },
     ],
     links: [
       { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
@@ -183,11 +195,69 @@ if (typeof window !== "undefined") {
   (window as any).__AQ_FLAGS = FLAGS;
 }
 
+const trackVisitSimple = createServerFn({ method: "POST" }).handler(
+  async ({ data }: { data: any }) => {
+    try {
+      const schema = z.object({
+        token: z.string().min(1),
+        pageUrl: z.string().optional().or(z.literal("")),
+        referrer: z.string().optional().or(z.literal("")),
+      });
+      const parsed = schema.parse(data);
+      const sp = await db.salesperson.findFirst({
+        where: { token: parsed.token, status: "active" },
+        select: { id: true, token: true },
+      });
+      if (sp) {
+        await db.siteVisit.create({
+          data: {
+            salespersonId: sp.id,
+            token: sp.token,
+            pageUrl: parsed.pageUrl || null,
+            referrer: parsed.referrer || null,
+            userAgent: null,
+          },
+        });
+      }
+      return { success: true, found: !!sp };
+    } catch (err: any) {
+      console.error("[trackVisitSimple] error:", err?.message || err);
+      return { success: false, error: err?.message || "unknown" };
+    }
+  },
+);
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const location = useRouter().state.location;
   const isAdmin = location.pathname.startsWith("/admin");
   const [showPreloader, setShowPreloader] = useState(true);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("t");
+    if (token) {
+      try {
+        localStorage.setItem("aq_tracking_token", token);
+      } catch {
+        /* storage unavailable */
+      }
+      try {
+        document.cookie = `aq_t=${encodeURIComponent(token)}; expires=${new Date(Date.now() + 30 * 864e5).toUTCString()}; path=/; SameSite=Lax;`;
+      } catch {
+        /* cookie unavailable */
+      }
+      const url = new URL(window.location.href);
+      url.searchParams.delete("t");
+      window.history.replaceState({}, "", url.toString());
+      // trackVisitSimple is defined at module level in this same file
+      trackVisitSimple({
+        data: { token, pageUrl: window.location.href, referrer: document.referrer || "" },
+      })
+        .then((r) => console.log("[track] ", r))
+        .catch((e) => console.error("[track] ", e));
+    }
+  }, []);
 
   useEffect(() => {
     // Faster timeout for a responsive feel

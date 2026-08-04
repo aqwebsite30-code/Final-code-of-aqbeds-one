@@ -50,12 +50,21 @@ export const Route = createFileRoute("/product/$slug")({
           { name: "description", content: loaderData.product.description.slice(0, 155) },
           { property: "og:title", content: `${loaderData.product.name} — AQ Beds` },
           { property: "og:description", content: loaderData.product.description.slice(0, 155) },
-          { property: "og:image", content: `https://www.aqbeds.com${loaderData.product.images[0]}` },
-          { property: "og:url", content: `https://www.aqbeds.com/product/${loaderData.product.slug}` },
+          {
+            property: "og:image",
+            content: `https://www.aqbeds.com${loaderData.product.images[0]}`,
+          },
+          {
+            property: "og:url",
+            content: `https://www.aqbeds.com/product/${loaderData.product.slug}`,
+          },
           { property: "og:type", content: "product" },
           { name: "twitter:card", content: "summary_large_image" },
           { name: "twitter:title", content: `${loaderData.product.name} — AQ Beds` },
-          { name: "twitter:image", content: `https://www.aqbeds.com${loaderData.product.images[0]}` },
+          {
+            name: "twitter:image",
+            content: `https://www.aqbeds.com${loaderData.product.images[0]}`,
+          },
         ]
       : [],
     scripts: loaderData
@@ -151,6 +160,13 @@ const PLUSH_VELVET_COLORS = [
   { name: "Teal", image: "/COLOR/plush velvet/Teal.webp" },
   { name: "White", image: "/COLOR/plush velvet/White.webp" },
 ];
+
+const BED_FABRIC_PALETTES: Record<string, { name: string; image?: string; hex?: string }[]> = {
+  "Crushed Velvet": CRUSHED_VELVET_COLORS,
+  "Plush Velvet": PLUSH_VELVET_COLORS,
+  Chenille: CHENILLE_COLORS,
+  "Soft Matte": SOFT_MATTE_COLORS,
+};
 
 const DYLAN_FABRICS = [
   { name: "Plush Velvet", extraPrice: 0 },
@@ -262,13 +278,23 @@ function ProductPage() {
   const sofaFabrics = isDylan ? DYLAN_FABRICS : OTHER_SOFA_FABRICS;
   const initialFabric = isSofa ? sofaFabrics[0] : product.fabrics[0];
 
+  const getBedPalette = (fb: any) => {
+    if (fb?.colors && fb.colors.length > 0) return fb.colors;
+    return BED_FABRIC_PALETTES[fb?.name] ?? [];
+  };
+
   const [activeImg, setActiveImg] = useState(0);
   const [size, setSize] = useState(product.sizes[0]);
   const [fabric, setFabric] = useState(initialFabric);
   const [color, setColor] = useState(
-    isSofa ? SOFA_PALETTES[sofaFabrics[0].name][0] : product.colors[0],
+    isSofa
+      ? SOFA_PALETTES[sofaFabrics[0].name][0]
+      : product.fabrics.length > 0
+        ? (getBedPalette(product.fabrics[0])[0] ?? product.colors[0])
+        : product.colors[0],
   );
   const [mattress, setMattress] = useState(product.mattressOptions[0]);
+  const [withMattress, setWithMattress] = useState(product.mattressOptions.length > 0);
   const [frame, setFrame] = useState(product.frameOptions[0]);
   const [headboardOpt, setHeadboard] = useState(product.headboardOptions?.[0]);
   const [storage, setStorage] = useState(product.storageOptions?.[0]);
@@ -415,9 +441,53 @@ function ProductPage() {
   ]);
 
   const total = unitPrice * qty;
-  const related = (PRODUCTS as any[]).filter(
-    (p: any) => p.category === product.category && p.id !== product.id,
-  ).slice(0, 4);
+  const related = (PRODUCTS as any[])
+    .filter((p: any) => p.category === product.category && p.id !== product.id)
+    .slice(0, 4);
+
+  // Sizes come as two groups: "… – With Mattress" and "… – No Mattress".
+  // Show only the group matching the With/Without Mattress toggle.
+  const isWithMattressSize = (n: string) => n.toLowerCase().includes("with mattress");
+  const isNoMattressSize = (n: string) => n.toLowerCase().includes("no mattress");
+  const hasMattressSizeGroups = product.sizes.some(
+    (s) => isWithMattressSize(s.name) || isNoMattressSize(s.name),
+  );
+  const baseSizeName = (n: string) =>
+    n
+      .toLowerCase()
+      .replace(/\s*(?:–|-|—)\s*with mattress$/i, "")
+      .replace(/\s*(?:–|-|—)\s*no mattress$/i, "")
+      .trim();
+
+  const sizeOptions = useMemo(() => {
+    if (!hasMattressSizeGroups || product.mattressOptions.length === 0) return product.sizes;
+    const filtered = product.sizes.filter((s) =>
+      withMattress ? isWithMattressSize(s.name) : isNoMattressSize(s.name),
+    );
+    return filtered.length > 0 ? filtered : product.sizes;
+  }, [product.sizes, product.mattressOptions, withMattress, hasMattressSizeGroups]);
+
+  const toggleMattressGroup = (wantWith: boolean) => {
+    setWithMattress(wantWith);
+    if (hasMattressSizeGroups) {
+      const base = baseSizeName(size?.name ?? "");
+      const next =
+        product.sizes.find(
+          (s) =>
+            baseSizeName(s.name) === base &&
+            (wantWith ? isWithMattressSize(s.name) : isNoMattressSize(s.name)),
+        ) ??
+        product.sizes.find((s) =>
+          wantWith ? isWithMattressSize(s.name) : isNoMattressSize(s.name),
+        );
+      if (next) setSize(next);
+    }
+    if (!wantWith) {
+      setMattress(null as any);
+    } else if (!mattress) {
+      setMattress(product.mattressOptions[0]);
+    }
+  };
 
   const selectedOptions: Record<string, string> = {
     ...(size && { Size: size.name }),
@@ -581,79 +651,47 @@ function ProductPage() {
                   </OptionGroup>
                 )}
               </>
-            ) : product.fabrics && product.fabrics.length > 0 && !isDb ? (
-              [
-                {
-                  label: "Crushed Velvet Colors",
-                  palette: CRUSHED_VELVET_COLORS,
-                  fabricName: "Crushed Velvet",
-                },
-                {
-                  label: "Plush Velvet Colors",
-                  palette: PLUSH_VELVET_COLORS,
-                  fabricName: "Plush Velvet",
-                },
-                { label: "Chenille Colors", palette: CHENILLE_COLORS, fabricName: "Chenille" },
-                {
-                  label: "Soft Matte Colors",
-                  palette: SOFT_MATTE_COLORS,
-                  fabricName: "Soft Matte",
-                },
-              ].map(({ label, palette, fabricName }) => (
-                <OptionGroup
-                  key={label}
-                  label={label}
-                  value={palette.some((c) => c.image === color?.image) ? color?.name : undefined}
-                >
-                  <div className="flex flex-wrap gap-3">
-                    {palette.map((c) => (
-                      <button
-                        key={c.image}
-                        onClick={() => {
-                          setColor(c);
-                          const f =
-                            product.fabrics.find((fb) => fb.name === fabricName) ||
-                            product.fabrics[0];
-                          setFabric(f);
-                        }}
-                        className={`group relative w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden border-2 transition-all ${color?.image === c.image ? "border-brand ring-4 ring-brand/10 scale-105" : "border-border hover:border-brand/40"}`}
-                        title={c.name}
-                      >
-                        <img
-                          src={c.image!}
-                          alt={`${c.name} — ${fabricName} — AQ Beds`}
-                          className="h-full w-full object-cover"
-                          loading="lazy"
-                          decoding="async"
-                        />
-                        <div className="absolute bottom-0 left-0 right-0 h-[18px] bg-black/75 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                          <span className="text-[7px] font-bold text-white uppercase tracking-tight truncate px-1">
-                            {c.name}
-                          </span>
-                        </div>
-                      </button>
-                    ))}
+            ) : product.fabrics && product.fabrics.length > 0 ? (
+              <>
+                <OptionGroup label="1. Select Fabric" value={fabric?.name}>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {product.fabrics.map((fb: any) => {
+                      const active = fabric?.name === fb.name;
+                      return (
+                        <button
+                          key={fb.name}
+                          onClick={() => {
+                            setFabric(fb);
+                            const palette = getBedPalette(fb);
+                            if (palette[0]) setColor(palette[0]);
+                          }}
+                          className={`px-3 h-14 rounded-xl border-2 text-sm font-semibold transition-all flex flex-col items-center justify-center gap-0.5 ${
+                            active
+                              ? "border-brand bg-brand/10 text-brand shadow-md"
+                              : "border-border bg-card hover:border-brand/40 text-foreground"
+                          }`}
+                        >
+                          <span>{fb.name}</span>
+                          {fb.extraPrice !== 0 && (
+                            <span
+                              className={`text-[10px] ${active ? "text-brand/80" : "text-muted-foreground"}`}
+                            >
+                              +£{fb.extraPrice}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
                 </OptionGroup>
-              ))
-            ) : isDb && product.fabrics && product.fabrics.length > 0 ? (
-              product.fabrics.map((fabric: any) => {
-                const palette = fabric.colors || [];
-                if (palette.length === 0) return null;
-                return (
-                  <OptionGroup
-                    key={fabric.name}
-                    label={`${fabric.name} Colors`}
-                    value={color?.name || undefined}
-                  >
+
+                {fabric && getBedPalette(fabric).length > 0 && (
+                  <OptionGroup label={`2. Select Color (${fabric.name})`} value={color?.name}>
                     <div className="flex flex-wrap gap-3">
-                      {palette.map((c: any) => (
+                      {getBedPalette(fabric).map((c: any) => (
                         <button
                           key={c.name + (c.image || "")}
-                          onClick={() => {
-                            setColor(c);
-                            setFabric({ name: fabric.name, extraPrice: fabric.extraPrice });
-                          }}
+                          onClick={() => setColor(c)}
                           className={`group relative w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden border-2 transition-all ${color?.name === c.name ? "border-brand ring-4 ring-brand/10 scale-105" : "border-border hover:border-brand/40"}`}
                           title={c.name}
                         >
@@ -668,17 +706,21 @@ function ProductPage() {
                           ) : c.hex ? (
                             <div className="h-full w-full" style={{ backgroundColor: c.hex }} />
                           ) : (
-                            <div className="h-full w-full bg-gray-700 flex items-center justify-center text-[8px] text-gray-400">{c.name?.charAt(0)}</div>
+                            <div className="h-full w-full bg-gray-700 flex items-center justify-center text-[8px] text-gray-400">
+                              {c.name?.charAt(0)}
+                            </div>
                           )}
                           <div className="absolute bottom-0 left-0 right-0 h-[18px] bg-black/75 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                            <span className="text-[7px] font-bold text-white uppercase tracking-tight truncate px-1">{c.name}</span>
+                            <span className="text-[7px] font-bold text-white uppercase tracking-tight truncate px-1">
+                              {c.name}
+                            </span>
                           </div>
                         </button>
                       ))}
                     </div>
                   </OptionGroup>
-                );
-              })
+                )}
+              </>
             ) : (
               <OptionGroup label="Colors" value={color?.name}>
                 <div className="flex flex-wrap gap-3">
@@ -724,13 +766,52 @@ function ProductPage() {
                 />
               </OptionGroup>
             ) : (
-              <OptionGroup label="Size" value={size?.name}>
+              <OptionGroup
+                label={product.fabrics.length > 0 ? "3. Size" : "Size"}
+                value={size?.name}
+              >
+                {product.mattressOptions.length > 0 && (
+                  <div className="grid grid-cols-2 gap-2 mb-4">
+                    <button
+                      onClick={() => toggleMattressGroup(true)}
+                      className={`px-4 h-12 rounded-xl border-2 text-sm font-semibold transition-all ${
+                        withMattress
+                          ? "border-brand bg-brand/10 text-brand shadow-md"
+                          : "border-border bg-card hover:border-brand/40"
+                      }`}
+                    >
+                      With Mattress
+                    </button>
+                    <button
+                      onClick={() => toggleMattressGroup(false)}
+                      className={`px-4 h-12 rounded-xl border-2 text-sm font-semibold transition-all ${
+                        !withMattress
+                          ? "border-brand bg-brand/10 text-brand shadow-md"
+                          : "border-border bg-card hover:border-brand/40"
+                      }`}
+                    >
+                      Without Mattress
+                    </button>
+                  </div>
+                )}
                 <Pills
-                  items={product.sizes}
+                  items={sizeOptions}
                   active={size}
                   onSelect={setSize}
                   showAbsolutePriceWithBase={product.basePrice}
                 />
+                {withMattress && product.mattressOptions.length > 0 && (
+                  <div className="mt-5 pt-4 border-t border-border/50">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">
+                      Choose Your Mattress
+                    </p>
+                    <Pills
+                      items={product.mattressOptions}
+                      active={mattress}
+                      onSelect={setMattress}
+                    />
+                  </div>
+                )}
               </OptionGroup>
             )}
             {product.frameOptions?.length > 0 && (
@@ -757,11 +838,6 @@ function ProductPage() {
                     );
                   })}
                 </div>
-              </OptionGroup>
-            )}
-            {product.mattressOptions?.length > 0 && (
-              <OptionGroup label="Mattress" value={mattress?.name}>
-                <Pills items={product.mattressOptions} active={mattress} onSelect={setMattress} />
               </OptionGroup>
             )}
             {product.headboardOptions && product.headboardOptions.length > 0 && (
@@ -833,11 +909,19 @@ function ProductPage() {
               </ul>
               <div className="flex items-center justify-between pt-4">
                 <div className="inline-flex items-center rounded-xl border border-border">
-                  <button className="p-2.5" onClick={() => setQty((q) => Math.max(1, q - 1))} aria-label="Decrease quantity">
+                  <button
+                    className="p-2.5"
+                    onClick={() => setQty((q) => Math.max(1, q - 1))}
+                    aria-label="Decrease quantity"
+                  >
                     <Minus className="h-4 w-4" />
                   </button>
                   <span className="px-3 tabular-nums">{qty}</span>
-                  <button className="p-2.5" onClick={() => setQty((q) => q + 1)} aria-label="Increase quantity">
+                  <button
+                    className="p-2.5"
+                    onClick={() => setQty((q) => q + 1)}
+                    aria-label="Increase quantity"
+                  >
                     <Plus className="h-4 w-4" />
                   </button>
                 </div>

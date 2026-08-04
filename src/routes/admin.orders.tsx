@@ -27,7 +27,27 @@ import { z } from "zod";
 
 export const getOrders = createServerFn({ method: "GET" }).handler(async () => {
   try {
-    return await db.order.findMany({ orderBy: { createdAt: "desc" }, take: 50 });
+    const orders = await db.order.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 50,
+      include: { salesperson: true },
+    });
+    const tokens = orders.filter((o) => o.trackingToken).map((o) => o.trackingToken as string);
+    const visits =
+      tokens.length > 0
+        ? await db.siteVisit.findMany({
+            where: { token: { in: tokens } },
+            orderBy: { createdAt: "desc" },
+          })
+        : [];
+    const visitMap: Record<string, any> = {};
+    for (const v of visits) {
+      if (!visitMap[v.token]) visitMap[v.token] = v;
+    }
+    return orders.map((o) => ({
+      ...o,
+      visit: o.trackingToken ? (visitMap[o.trackingToken] ?? null) : null,
+    }));
   } catch {
     return [];
   }
@@ -209,6 +229,26 @@ function OrderDetail({ order, onDelete }: { order: any; onDelete: () => void }) 
               <InfoRow icon={User} label="Full Name" value={order.customerName} />
               <InfoRow icon={Mail} label="Email" value={order.customerEmail} />
               <InfoRow icon={Phone} label="Phone" value={order.customerPhone} />
+            </div>
+          </div>
+
+          {/* Salesperson Attribution */}
+          <div>
+            <h4 className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-3 flex items-center gap-2">
+              <User className="w-3 h-3" /> Attribution
+            </h4>
+            <div className="space-y-3">
+              {order.salesperson ? (
+                <InfoRow icon={User} label="Salesperson" value={order.salesperson.fullName} />
+              ) : (
+                <InfoRow icon={User} label="Salesperson" value="Organic (no referral)" />
+              )}
+              <InfoRow icon={Mail} label="Tracking Token" value={order.trackingToken || "—"} />
+              <InfoRow
+                icon={Mail}
+                label="Traffic Source"
+                value={order.visit?.referrer || order.visit?.pageUrl || "—"}
+              />
             </div>
           </div>
 
@@ -409,10 +449,11 @@ function AdminOrders() {
         style={card}
       >
         <div
-          className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr] px-5 py-3 text-[10px] font-bold text-gray-600 uppercase tracking-widest"
+          className="grid grid-cols-[2fr_1.2fr_1fr_1fr_1fr_1fr] px-5 py-3 text-[10px] font-bold text-gray-600 uppercase tracking-widest"
           style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}
         >
           <span>Customer</span>
+          <span>Salesperson</span>
           <span>Order ID</span>
           <span>Amount</span>
           <span>Status</span>
@@ -434,7 +475,7 @@ function AdminOrders() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 + i * 0.03, duration: 0.3 }}
                 onClick={() => setExpandedId(expandedId === order.id ? null : order.id)}
-                className={`grid grid-cols-[2fr_1fr_1fr_1fr_1fr] items-center px-5 py-4 hover:bg-white/[0.02] transition-colors group cursor-pointer ${expandedId === order.id ? "bg-white/[0.03]" : ""}`}
+                className={`grid grid-cols-[2fr_1.2fr_1fr_1fr_1fr_1fr] items-center px-5 py-4 hover:bg-white/[0.02] transition-colors group cursor-pointer ${expandedId === order.id ? "bg-white/[0.03]" : ""}`}
                 style={{ borderBottom: "1px solid rgba(255,255,255,0.03)" }}
               >
                 <div className="flex items-center gap-3 min-w-0">
@@ -449,6 +490,14 @@ function AdminOrders() {
                   </div>
                 </div>
 
+                {order.salesperson?.fullName ? (
+                  <span className="flex items-center gap-1.5 text-xs text-blue-400 font-semibold truncate pr-2">
+                    <User className="w-3 h-3 shrink-0" />
+                    {order.salesperson.fullName}
+                  </span>
+                ) : (
+                  <span className="text-xs text-gray-600 italic truncate pr-2">Organic</span>
+                )}
                 <span className="text-xs font-mono text-gray-500 tracking-tighter">
                   #{order.id?.slice(0, 8).toUpperCase()}
                 </span>
@@ -504,6 +553,13 @@ function AdminOrders() {
                         {order.customerName}
                       </p>
                       <p className="text-[10px] text-gray-500 truncate">{order.customerEmail}</p>
+                      {order.salesperson?.fullName ? (
+                        <p className="text-[10px] text-blue-400/80 truncate mt-0.5">
+                          Salesperson: {order.salesperson.fullName}
+                        </p>
+                      ) : (
+                        <p className="text-[10px] text-gray-600 italic truncate mt-0.5">Organic</p>
+                      )}
                     </div>
                   </div>
                   <span className="text-sm font-bold text-white flex-shrink-0">

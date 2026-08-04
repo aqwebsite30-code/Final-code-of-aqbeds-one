@@ -52,16 +52,43 @@ model ProductImage {
 }
 
 model Order {
-  id              String   @id @default(uuid())
+  id              String        @id @default(uuid())
   customerName    String
   customerEmail   String
   customerPhone   String
   customerAddress String
-  items           String   // JSON string of cart items
+  items           String        // JSON string of cart items
   instructions    String?
-  status          String   @default("pending")
+  status          String        @default("pending")
   total           Float
-  createdAt       DateTime @default(now())
+  salespersonId   String?
+  salesperson     Salesperson?  @relation(fields: [salespersonId], references: [id])
+  trackingToken   String?
+  createdAt       DateTime      @default(now())
+}
+
+model Salesperson {
+  id           String      @id @default(uuid())
+  fullName     String
+  email        String?
+  phone        String?
+  employeeCode String      @unique
+  status       String      @default("active")
+  token        String      @unique
+  createdAt    DateTime    @default(now())
+  orders       Order[]
+  visits       SiteVisit[]
+}
+
+model SiteVisit {
+  id             String       @id @default(uuid())
+  salespersonId  String
+  salesperson    Salesperson  @relation(fields: [salespersonId], references: [id], onDelete: Cascade)
+  token          String
+  pageUrl        String?
+  referrer       String?
+  userAgent      String?
+  createdAt      DateTime     @default(now())
 }
 
 model AdminUser {

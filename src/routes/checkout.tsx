@@ -5,7 +5,8 @@ import { formatGBP, WHATSAPP_NUMBER } from "../lib/utils/format";
 import { CheckCircle2, Loader2, MessageSquare, ArrowLeft } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { sendOrderEmail } from "../lib/email";
-import { createOrder } from "../lib/order";
+import { saveOrder } from "@/lib/orders";
+import { getTrackingToken } from "@/hooks/useTracking";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/checkout")({
@@ -17,6 +18,7 @@ function CheckoutPage() {
   const { items, total, clear } = useCart();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [placed, setPlaced] = useState(false);
+  const [whatsappUrl, setWhatsappUrl] = useState("");
 
   if (items.length === 0 && !placed) {
     return (
@@ -50,9 +52,43 @@ function CheckoutPage() {
     const totalAmount = formatGBP(total());
 
     try {
-      // 1. Send Email via Resend
+      // 1. Save order to database (get order number for confirmation + WhatsApp)
+      const trackingToken = getTrackingToken();
+      // @ts-ignore
+      const orderResult = await saveOrder({
+        data: {
+          customerName: customer.name,
+          customerEmail: customer.email,
+          customerPhone: customer.phone,
+          customerAddress: `${customer.addr1}, ${customer.city}, ${customer.postcode}, ${formData.get("country") || "United Kingdom"}`,
+          items: JSON.stringify(
+            items.map((i) => ({
+              id: i.productId,
+              name: i.name,
+              qty: i.qty,
+              price: i.unitPrice,
+              options: i.options,
+              image: i.image,
+            })),
+          ),
+          total: total(),
+          instructions: (formData.get("instructions") as string) || "",
+          trackingToken,
+        },
+      });
+
+      let orderId = "";
+      if (orderResult && orderResult.success) {
+        orderId = orderResult.orderId ?? "";
+      } else {
+        console.error("Order save failed:", orderResult?.error);
+      }
+
+      // 2. Send Email via Resend
       const emailPayload: any = {
         data: {
+          orderId,
+          orderNumber: orderId ? `#${orderId.slice(0, 8).toUpperCase()}` : "",
           customer: {
             ...customer,
             country: formData.get("country") as string,
@@ -76,40 +112,14 @@ function CheckoutPage() {
         toast.error("Email failed to send, but order was placed.");
       }
 
-      // 2. Save order to database
-      // @ts-ignore
-      const orderResult = await createOrder({
-        data: {
-          customer,
-          items: items.map((i) => ({
-            id: i.productId,
-            name: i.name,
-            qty: i.qty,
-            price: i.unitPrice,
-            options: i.options,
-            image: i.image,
-          })),
-          total: totalAmount,
-          instructions: formData.get("instructions") as string,
-        },
-      });
+      // 3. Prepare WhatsApp message with order number (opened manually by customer)
+      const orderNumber = orderId ? `#${orderId.slice(0, 8).toUpperCase()}` : "";
+      const message = `Hello AQ Beds! I'd like to place an order:\n\n*Order No:* ${orderNumber}\n\n*Items:*\n${orderSummary}\n\n*Total:* ${totalAmount}\n\n*Customer Details:*\n- Name: ${customer.name}\n- Phone: ${customer.phone}\n- Address: ${customer.addr1}, ${customer.city}, ${customer.postcode}`;
+      const waUrl = `https://wa.me/${WHATSAPP_NUMBER.replace(/\+/g, "")}?text=${encodeURIComponent(message)}`;
 
-      if (orderResult && !orderResult.success) {
-        console.error("Order save failed:", orderResult.error);
-      }
-
-      // 3. Prepare WhatsApp message (for later use or automated open if preferred)
-      const message = `Hello AQ Beds! I'd like to place an order:\n\n*Items:*\n${orderSummary}\n\n*Total:* ${totalAmount}\n\n*Customer Details:*\n- Name: ${customer.name}\n- Phone: ${customer.phone}\n- Address: ${customer.addr1}, ${customer.city}, ${customer.postcode}`;
-      const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER.replace(/\+/g, "")}?text=${encodeURIComponent(message)}`;
-
-      // We'll show the popup first
+      setWhatsappUrl(waUrl);
       setPlaced(true);
-
-      // Small delay before clearing cart or redirecting
-      setTimeout(() => {
-        window.open(whatsappUrl, "_blank");
-        clear();
-      }, 1000);
+      clear();
     } catch (err) {
       console.error("Checkout Error:", err);
       toast.error("Something went wrong. Please try again.");
@@ -257,11 +267,15 @@ function CheckoutPage() {
                     <ArrowLeft className="w-5 h-5 transition-transform group-hover:-translate-x-1" />
                     Return Home
                   </Link>
-                </div>
-
-                <div className="flex items-center gap-2 text-whatsapp font-bold text-xs bg-white/10 px-4 py-2 rounded-full border border-white/5 animate-pulse">
-                  <MessageSquare className="w-4 h-4" />
-                  Opening WhatsApp...
+                  <a
+                    href={whatsappUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="w-full h-14 rounded-2xl bg-whatsapp text-white font-bold flex items-center justify-center gap-2 hover:bg-whatsapp/90 transition-all shadow-xl hover:scale-[1.02] active:scale-[0.98]"
+                  >
+                    <MessageSquare className="w-5 h-5" />
+                    Open WhatsApp
+                  </a>
                 </div>
               </div>
 

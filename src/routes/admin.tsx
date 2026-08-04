@@ -12,6 +12,8 @@ import {
   MessageCircle,
   Menu,
   X,
+  Users,
+  BarChart3,
 } from "lucide-react";
 
 export const Route = createFileRoute("/admin")({
@@ -23,6 +25,8 @@ const NAV_LINKS = [
   { name: "Products", href: "/admin/products", icon: Package },
   { name: "Live Chat", href: "/admin/chat", icon: MessageCircle, badge: true },
   { name: "Orders", href: "/admin/orders", icon: ShoppingCart },
+  { name: "Sales Team", href: "/admin/sales", icon: Users },
+  { name: "Sales Dashboard", href: "/admin/sales-dashboard", icon: BarChart3 },
   { name: "Settings", href: "/admin/settings", icon: Settings },
 ];
 
@@ -179,8 +183,6 @@ function AdminLayout() {
               </Link>
             );
           })}
-
-
         </nav>
 
         {/* Bottom — User + Logout */}
@@ -205,7 +207,10 @@ function AdminLayout() {
       </aside>
 
       {/* ── Main Content ─────────────────────────────────────── */}
-      <main className="flex-1 relative overflow-y-auto pt-16 md:pt-0" style={{ background: "#070b14" }}>
+      <main
+        className="flex-1 relative overflow-y-auto pt-16 md:pt-0"
+        style={{ background: "#070b14" }}
+      >
         {/* Ambient glow */}
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-600/5 rounded-full blur-3xl" />
